@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>工作記帳表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F5F0;
+    --card:#FFFFFF;
+    --line:#E4DFD1;
+    --ink:#26241F;
+    --ink-soft:#79735F;
+    --ink-faint:#A8A08C;
+
+    --labor:#C98A2B; --labor-bg:#FBF0DC;
+    --shift:#2F6F62; --shift-bg:#E3EEEA;
+    --oil:#6B7A3A;   --oil-bg:#EBEEDE;
+    --extra:#4A6FA5; --extra-bg:#E1E7EF;
+    --tip:#C6577A;   --tip-bg:#F8E7EC;
+    --other:#8A8578; --other-bg:#EFEDE6;
+    --expense:#B0473F; --expense-bg:#F7E2DF;
+    --year:#7C5295; --year-bg:#EEE3F3;
+    --holiday:#C0392B;
+  }
+
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans TC', sans-serif;line-height:1.5;padding-bottom:60px;}
+  .app{max-width:480px;margin:0 auto;padding:18px 14px 40px;}
+
+  header{padding:6px 2px 18px;}
+  header h1{font-size:21px;font-weight:900;margin:0 0 2px;letter-spacing:1px;}
+  header .sub{font-size:12.5px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;}
+
+  /* ---- 備份提醒橫幅 ---- */
+  .backup-banner{
+    display:flex;align-items:center;gap:10px;
+    background:var(--labor-bg);border:1.5px solid var(--labor);border-radius:12px;
+    padding:12px 14px;margin-bottom:16px;
+  }
+  .backup-banner .bb-text{flex:1;font-size:12.5px;color:var(--ink);line-height:1.5;}
+  .backup-banner .bb-text b{color:var(--labor);}
+  .backup-banner .bb-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+  .backup-banner .btn-small{width:auto;padding:8px 12px;font-size:12.5px;white-space:nowrap;}
+  .backup-banner .bb-dismiss{
+    border:none;background:none;color:var(--ink-faint);font-size:16px;
+    cursor:pointer;padding:4px 6px;flex-shrink:0;
+  }
+  .backup-banner .bb-dismiss:active{color:var(--ink);}
+
+  h2.section-title{
+    font-size:14px;font-weight:700;margin:26px 2px 10px;
+    display:flex;align-items:center;gap:6px;color:var(--ink);
+  }
+  h2.section-title .n{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;
+    background:var(--ink);border-radius:50%;width:18px;height:18px;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+
+  /* ---- 統計卡片 ---- */
+  .stats-scroll{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;margin:14px -2px 0;}
+  .stat-card{scroll-snap-align:start;flex:0 0 84%;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;}
+  .stat-card.full{flex:0 0 100%;}
+  .stat-card .title{font-size:13px;font-weight:700;margin-bottom:2px;}
+  .stat-card .range{font-size:11px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace;margin-bottom:10px;display:block;}
+  .perf-highlight{
+    display:flex;justify-content:space-between;align-items:baseline;
+    background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:8px;
+  }
+  .perf-highlight span:first-child{font-size:12.5px;font-weight:700;}
+  .perf-val{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:19px;}
+  .stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .stat-row:last-child{border-bottom:none;}
+  .stat-row.sub{padding-left:10px;font-size:12.5px;color:var(--ink-soft);}
+  .stat-row .val{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14.5px;}
+  .stat-row .val.labor{color:var(--labor);}
+  .stat-row .val.shift{color:var(--shift);}
+  .stat-row .val.neg{color:var(--expense);}
+
+  /* ---- 自訂期間統計卡片 ---- */
+  .custom-range-card .range-picker{
+    display:flex;align-items:center;gap:6px;margin-bottom:8px;
+  }
+  .custom-range-card .range-picker input[type="date"]{
+    flex:1;min-width:0;padding:7px 6px;border:1.5px solid var(--line);border-radius:8px;
+    background:var(--bg);font-family:inherit;font-size:13px;color:var(--ink);
+  }
+  .custom-range-card .range-picker span{color:var(--ink-faint);font-size:12px;flex-shrink:0;}
+  .custom-range-list{
+    max-height:280px;overflow-y:auto;padding-top:6px;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  /* ---- 新增紀錄表單 ---- */
+  /* ---- 新增紀錄表單：彈跳視窗 ---- */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(38,36,31,0.55);
+    z-index:100;
+    align-items:flex-end;
+    justify-content:center;
+    padding:0;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-overlay .form-card{
+    width:100%;
+    max-width:480px;
+    max-height:88vh;
+    overflow-y:auto;
+    border-radius:18px 18px 0 0;
+    margin:0;
+    animation:slideUp 0.2s ease-out;
+  }
+  @keyframes slideUp{
+    from{transform:translateY(30px);opacity:0;}
+    to{transform:translateY(0);opacity:1;}
+  }
+  .modal-head{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:14px;
+  }
+  .modal-title{font-size:16px;font-weight:900;}
+  .modal-close{
+    border:none;background:var(--bg);color:var(--ink-soft);
+    width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;
+  }
+
+  .form-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;}
+  .cat-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;}
+  .cat-btn{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:8px 1px;font-family:inherit;font-size:11px;font-weight:500;color:var(--ink-soft);cursor:pointer;}
+  .cat-btn.active[data-cat="勞點"]{background:var(--labor);border-color:var(--labor);color:#fff;}
+  .cat-btn.active[data-cat="排班"]{background:var(--shift);border-color:var(--shift);color:#fff;}
+  .cat-btn.active[data-cat="油"]{background:var(--oil);border-color:var(--oil);color:#fff;}
+  .cat-btn.active[data-cat="小費"]{background:var(--extra);border-color:var(--extra);color:#fff;}
+  .cat-btn.active[data-cat="其他"]{background:var(--other);border-color:var(--other);color:#fff;}
+  .cat-btn.active[data-cat="支出"]{background:var(--expense);border-color:var(--expense);color:#fff;}
+
+  .session-box{background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:14px;}
+  .session-box .sbtitle{font-size:11px;color:var(--ink-soft);margin-bottom:8px;display:flex;justify-content:space-between;}
+  .session-box .sbtitle b{color:var(--ink);font-family:'JetBrains Mono',monospace;}
+  .stepper-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
+  .stepper-row .slabel{font-size:13.5px;font-weight:500;}
+  .stepper{display:flex;align-items:center;gap:10px;}
+  .stepper button{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:#fff;font-size:16px;line-height:1;color:var(--ink);cursor:pointer;}
+  .stepper button:active{background:var(--ink);color:#fff;}
+  .stepper .sval{font-family:'JetBrains Mono',monospace;font-weight:700;min-width:28px;text-align:center;font-size:14px;}
+
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;}
+  .field input, .field select{width:100%;padding:10px 11px;border:1.5px solid var(--line);border-radius:8px;background:#fff;font-family:inherit;font-size:16px;color:var(--ink);}
+  .two-col{display:grid;grid-template-columns:3fr 2fr;gap:8px;}
+  .two-col .field{min-width:0;max-width:100%;}
+  .two-col .field input{
+    min-width:0;max-width:100%;width:100%;
+    box-sizing:border-box;overflow:hidden;
+    padding:10px 6px;font-size:16px;
+  }
+
+  .btn{border:none;border-radius:9px;padding:12px 18px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer;width:100%;}
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-outline{background:#fff;border:1.5px solid var(--ink);color:var(--ink);}
+  .btn-small{width:auto;padding:8px 14px;font-size:13px;border-radius:8px;}
+
+  /* ---- 月曆滑動與排版優化 ---- */
+  .cal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;}
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .cal-nav button{border:1.5px solid var(--line);background:#fff;border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer;color:var(--ink);}
+  .cal-nav .cal-title{font-size:15px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .cal-actions{margin-bottom:10px;}
+
+  /* ---- 備註關鍵字搜尋 ---- */
+  .search-box{margin-bottom:14px;}
+  .search-box input{
+    width:100%;box-sizing:border-box;padding:11px 14px;
+    border:1.5px solid var(--line);border-radius:10px;
+    background:var(--card);font-family:inherit;font-size:16px;color:var(--ink);
+  }
+  .search-results{margin-top:8px;}
+  .search-result-item{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;cursor:pointer;
+  }
+  .search-result-item:active{background:var(--bg);}
+  .search-result-item .info{flex:1;min-width:0;}
+  .search-result-item .info .note{font-size:13px;color:var(--ink);}
+  .search-result-item .info .date{font-size:11.5px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+  .search-result-item .amount{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;flex-shrink:0;}
+  
+  .cal-scroll-wrapper{
+    overflow-x:auto;
+    width:100%;
+    -webkit-overflow-scrolling:touch;
+    margin-bottom:6px;
+  }
+  .cal-weekdays{
+    min-width:360px;
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:3px;
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-bottom:4px;
+  }
+  .cal-grid{
+    min-width:360px;
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:3px;
+  }
+  .cal-cell{
+    aspect-ratio:1/1.05;border-radius:8px;border:1px solid transparent;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:11px;cursor:pointer;background:var(--bg);color:var(--ink-soft);gap:1px;
+    overflow:hidden;
+  }
+  .cal-cell.empty{visibility:hidden;cursor:default;}
+  .cal-cell .d{font-weight:700;font-size:12px;color:var(--ink);}
+
+  /* 週末（六、日）與國定假日：整個格子變色（兩者用同一種顏色） */
+  .cal-cell.weekend, .cal-cell.holiday{background:rgba(192,57,43,0.09);}
+  .cal-cell.weekend .d, .cal-cell.holiday .d{color:var(--holiday);}
+  
+  /* 數字顯示與依金額變色 */
+  .cal-cell .amt{
+    font-family:'JetBrains Mono',monospace;
+    font-size:8.5px;
+    font-weight:700;
+    max-width:100%;
+    overflow:hidden;
+    white-space:nowrap;
+    letter-spacing:-0.3px;
+  }
+  .cal-cell .amt.level-low { color: var(--ink-soft); } /* 低金額 (如 $1500 以下) */
+  .cal-cell .amt.level-mid { color: var(--shift); }    /* 中等金額 (如 $1500~$3000) */
+  .cal-cell .amt.level-high { color: var(--labor); }   /* 高金額 (如 $3000 以上) */
+
+  /* 移除整格變色，改用邊框標記 */
+  .cal-cell.today{border:1.5px dashed var(--ink-soft);}
+  .cal-cell.selected{
+    border:2px solid var(--ink);
+    box-shadow:inset 0 0 0 1px #fff;
+  }
+  .cal-cell.selected .d{color:var(--ink);}
+
+  /* ---- 日明細面板優化 ---- */
+  .day-panel{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);}
+  .day-panel .dp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .day-panel .dp-date{font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .dp-empty{font-size:12.5px;color:var(--ink-faint);font-style:italic;padding:8px 0;}
+
+  /* 當日統計色塊（琥珀色系，跟下方整月統計的藍色系做出區隔） */
+  .day-summary-card{
+    margin-top:12px;
+    margin-bottom:22px;
+    background:var(--labor-bg);
+    border-radius:10px;
+    padding:12px 14px;
+    border:1.5px solid var(--labor);
+  }
+  .day-summary-card .ms-title-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .day-summary-card .ms-title{color:var(--labor);margin-bottom:0;}
+  .day-summary-card .ms-date{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--ink-soft);}
+  .day-summary-card .ms-item{border-color:var(--labor);}
+  .day-summary-card .ms-item b{color:var(--labor);}
+  .day-summary-card .qrow.total{
+    font-size:14px;font-weight:800;color:var(--ink);
+    padding:8px 0 2px;margin-top:2px;
+  }
+
+  .rec-card{
+    background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:7px;
+    display:flex;align-items:center;gap:10px;cursor:pointer;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;
+  }
+  .rec-card.dragging{
+    opacity:0.9;box-shadow:0 10px 22px rgba(38,36,31,0.22);
+    z-index:50;position:relative;background:var(--card);
+  }
+  .reorder-hint{
+    font-size:11px;color:var(--ink-faint);text-align:center;
+    padding:2px 0 8px;font-style:italic;
+  }
+  .rec-card .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0;}
+  .tag.勞點{background:var(--labor-bg);color:var(--labor);}
+  .tag.排班{background:var(--shift-bg);color:var(--shift);}
+  .tag.油{background:var(--oil-bg);color:var(--oil);}
+  .tag.小費{background:var(--extra-bg);color:var(--extra);}
+  .tag.其他{background:var(--other-bg);color:var(--other);}
+  .tag.支出{background:var(--expense-bg);color:var(--expense);}
+  .rec-card .info{flex:1;min-width:0;}
+  .rec-card .info .note{font-size:13px;color:var(--ink-soft);}
+  .rec-card .info .sessions{font-size:11.5px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+  .rec-card .amount{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;flex-shrink:0;}
+  .rec-card .del{border:none;background:none;color:var(--ink-faint);font-size:16px;cursor:pointer;flex-shrink:0;padding:2px 4px;}
+  .rec-card .del:active{color:var(--tip);}
+
+  /* ---- 月曆下方的月度累計統計 ---- */
+  .month-summary-card {
+    margin-top:14px;
+    background:var(--extra-bg);
+    border-radius:10px;
+    padding:12px 14px;
+    border:1.5px solid var(--extra);
+  }
+  .ms-title {
+    font-size:13px;
+    font-weight:700;
+    color:var(--extra);
+    margin-bottom:8px;
+  }
+  .ms-title-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .ms-title-nav .ms-title{margin-bottom:0;}
+  .ms-nav-btn{
+    border:1.5px solid var(--line);background:#fff;color:var(--ink);
+    width:34px;height:34px;border-radius:8px;font-size:16px;
+    cursor:pointer;flex-shrink:0;
+  }
+  .ms-nav-btn:active{background:var(--extra);border-color:var(--extra);color:#fff;}
+  .ms-grid {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:6px;
+  }
+  .ms-item {
+    display:flex;
+    flex-direction:column;
+    background:#fff;
+    padding:6px;
+    border-radius:6px;
+    border:1px solid var(--extra);
+    text-align:center;
+  }
+  .ms-item span { font-size:11px; color:var(--ink-soft); }
+  .ms-item b { font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--extra); margin-top:2px; }
+  .pct{font-size:10.5px;font-weight:500;color:var(--ink-faint);}
+
+  /* ---- 整年度統計（紫色系，跟月/日統計做出區隔；改為可滑動卡片） ---- */
+  .year-summary-block{margin-top:14px;}
+
+  .year-summary-block .ms-title-nav{margin-bottom:10px;}
+  .year-summary-block .ms-title.year-title{color:var(--year);font-size:14px;}
+  .year-summary-block .ms-nav-btn:active{background:var(--year);border-color:var(--year);color:#fff;}
+
+  .year-stats-scroll{
+    display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;
+    padding-bottom:6px;margin:0 -2px;
+  }
+  .year-card{
+    scroll-snap-align:start;flex:0 0 88%;
+    background:var(--year-bg);border:1.5px solid var(--year);border-radius:14px;
+    padding:14px 15px;
+  }
+  .year-card .yc-title{font-size:13px;font-weight:800;color:var(--year);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+  .year-card .yc-sub{font-size:11px;color:var(--ink-faint);font-weight:500;margin-left:auto;font-family:'JetBrains Mono',monospace;}
+
+  .year-card .ms-grid{margin-bottom:10px;}
+  .year-card .ms-item{background:#fff;border-color:var(--year);}
+  .year-card .ms-item b{color:var(--year);}
+
+  .year-card .qrow.total{font-size:14px;font-weight:800;color:var(--ink);padding:8px 0 2px;margin-top:2px;}
+
+  .goal-row{background:#fff;border:1px solid var(--year);border-radius:10px;padding:10px 12px;margin-bottom:9px;}
+  .goal-row:last-child{margin-bottom:0;}
+  .goal-row-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:6px;}
+  .goal-row-head span:first-child{font-weight:700;color:var(--ink);}
+  .goal-row-head .goal-num{font-family:'JetBrains Mono',monospace;color:var(--ink-soft);font-size:12px;}
+  .progress-track{background:var(--year-bg);border-radius:6px;height:9px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--year);border-radius:6px;transition:width 0.3s ease;}
+  .progress-fill.done{background:var(--shift);}
+  .goal-pct{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:var(--year);margin-top:4px;}
+  .goal-pct.done{color:var(--shift);}
+  .goal-done-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--shift);background:var(--shift-bg);border-radius:20px;padding:2px 8px;margin-top:4px;}
+
+  .pace-row{background:#fff;border:1px solid var(--year);border-radius:10px;padding:10px 12px;margin-bottom:9px;}
+  .pace-row:last-child{margin-bottom:0;}
+  .pace-row .pr-title{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px;}
+  .pace-row .pr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .pace-row .pr-item{text-align:center;background:var(--year-bg);border-radius:8px;padding:6px 4px;}
+  .pace-row .pr-item span{display:block;font-size:10.5px;color:var(--ink-soft);}
+  .pace-row .pr-item b{display:block;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--year);margin-top:2px;}
+  .pace-note{font-size:11.5px;color:var(--ink-faint);text-align:center;padding:6px 0;font-style:italic;}
+
+  .pace-header-line{
+    font-size:11.5px;color:var(--ink-soft);margin-bottom:3px;
+  }
+  .pace-header-line b{font-family:'JetBrains Mono',monospace;color:var(--ink);font-weight:700;}
+  .rest-select{
+    font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--year);
+    background:var(--year-bg);border:1px solid var(--year);border-radius:6px;
+    padding:1px 4px;-webkit-appearance:auto;appearance:auto;
+  }
+  .pace-effective-line{
+    font-size:11px;color:var(--ink-faint);margin-bottom:9px;
+  }
+  .pace-effective-line b{font-family:'JetBrains Mono',monospace;color:var(--year);font-weight:700;}
+
+  details.amount-details{
+    border-top:1px dashed var(--line);
+    margin-top:10px;
+    padding-top:8px;
+  }
+  details.amount-details summary{display:flex;justify-content:space-between;font-size:13px;font-weight:700;cursor:pointer;list-style:none;}
+  details.amount-details summary::-webkit-details-marker{display:none;}
+  details.amount-details summary b{font-family:'JetBrains Mono',monospace;}
+  details.amount-details summary::after{content:" ▾";margin-left:6px;color:var(--ink-faint);font-size:11px;}
+  details.amount-details[open] summary::after{content:" ▴";}
+  .sub-breakdown{padding:8px 4px 2px 4px;}
+  .sub-breakdown .qrow{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;color:var(--ink-soft);}
+  .sub-breakdown .qrow b.labor { color: var(--labor); }
+  .sub-breakdown .qrow b.shift { color: var(--shift); }
+  .sub-breakdown .qrow b.neg, .qrow.total b.neg { color: var(--expense); }
+
+  .empty{text-align:center;color:var(--ink-faint);font-size:13px;padding:30px 0;font-style:italic;}
+
+  .toolbar{display:flex;flex-direction:column;gap:8px;margin-top:26px;}
+  input[type=file]{display:none;}
+
+  .hint{font-size:11.5px;color:var(--ink-faint);margin-top:20px;padding-top:12px;border-top:1px dashed var(--line);}
+  .save-status{font-size:11px;color:var(--shift);margin-top:6px;}
+
+  @media (min-width:520px){ .stat-card{flex:0 0 60%;} }
+
+  /* ---- 打勾完成提示 ---- */
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:90px;
+    transform:translateX(-50%) translateY(16px);
+    background:var(--ink);
+    color:#fff;
+    padding:12px 22px;
+    border-radius:30px;
+    font-size:14px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.25s ease, transform 0.25s ease;
+    z-index:200;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast-check{
+    width:20px;height:20px;border-radius:50%;background:#4CAF7D;color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>工作記帳表</h1>
+    <span class="sub" id="todayLabel"></span>
+  </header>
+
+  <div class="backup-banner" id="backupBanner" style="display:none;">
+    <div class="bb-text" id="bbText"></div>
+    <div class="bb-actions">
+      <button type="button" class="btn btn-primary btn-small" id="bbBackupBtn">立即備份</button>
+      <button type="button" class="bb-dismiss" id="bbDismissBtn" title="稍後提醒">✕</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="addModalOverlay">
+  <div class="form-card" id="addFormCard">
+    <div class="modal-head">
+      <span class="modal-title" id="modalTitleText">新增紀錄</span>
+      <button type="button" class="modal-close" id="closeAddModal">✕</button>
+    </div>
+    <div class="cat-picker" id="catPicker">
+      <button type="button" class="cat-btn active" data-cat="勞點">勞點</button>
+      <button type="button" class="cat-btn" data-cat="排班">排班</button>
+      <button type="button" class="cat-btn" data-cat="油">油</button>
+      <button type="button" class="cat-btn" data-cat="小費">小費</button>
+      <button type="button" class="cat-btn" data-cat="其他">其他</button>
+      <button type="button" class="cat-btn" data-cat="支出">支出</button>
+    </div>
+
+    <div class="session-box" id="sessionBox">
+      <div class="sbtitle"><span>節數選擇（每 0.5 為一單位）</span><span>本筆節數：<b id="sessionTotal">0</b></span></div>
+      <div class="stepper-row">
+        <span class="slabel">身體</span>
+        <div class="stepper"><button type="button" data-key="身" data-dir="-1">－</button><span class="sval" id="val-身">0</span><button type="button" data-key="身" data-dir="1">＋</button></div>
+      </div>
+      <div class="stepper-row">
+        <span class="slabel">腳</span>
+        <div class="stepper"><button type="button" data-key="腳" data-dir="-1">－</button><span class="sval" id="val-腳">0</span><button type="button" data-key="腳" data-dir="1">＋</button></div>
+      </div>
+      <div class="stepper-row">
+        <span class="slabel">肩頸</span>
+        <div class="stepper"><button type="button" data-key="肩頸" data-dir="-1">－</button><span class="sval" id="val-肩頸">0</span><button type="button" data-key="肩頸" data-dir="1">＋</button></div>
+      </div>
+      <div class="stepper-row">
+        <span class="slabel">油壓</span>
+        <div class="stepper"><button type="button" data-key="油" data-dir="-1">－</button><span class="sval" id="val-油">0</span><button type="button" data-key="油" data-dir="1">＋</button></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="field"><label>日期</label><input type="date" id="fDate"></div>
+      <div class="field"><label>金額 (NT$)</label><input type="number" id="fAmount" min="0" step="1" placeholder="0" inputmode="numeric" pattern="[0-9]*"></div>
+    </div>
+    <div class="field"><label>備註（選填）</label><input type="text" id="fNote" placeholder="例如：王小姐 90分鐘"></div>
+    <button class="btn btn-primary" id="addBtn">加入紀錄</button>
+  </div>
+  </div>
+
+  <h2 class="section-title">紀錄與查詢</h2>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="🔍 搜尋備註關鍵字，例如：王小姐">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <div class="cal-card">
+    <div class="cal-nav">
+      <button type="button" id="calPrev">‹</button>
+      <span class="cal-title" id="calTitle"></span>
+      <button type="button" id="calNext">›</button>
+    </div>
+    <div class="cal-actions">
+      <button type="button" class="btn btn-primary" id="addForDayTop">＋新增紀錄</button>
+    </div>
+    <div class="cal-scroll-wrapper">
+      <!-- 月曆改為星期一開始 -->
+      <div class="cal-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <!-- 先顯示當日明細 -->
+    <div class="day-panel" id="dayPanel"></div>
+
+    <!-- 下期結算發薪 -->
+    <div class="stats-scroll" id="statsScroll"></div>
+
+    <!-- 整月統計 -->
+    <div class="month-summary-card" id="monthSummaryCard"></div>
+
+    <!-- 整年度統計（可左右滑動查看：年度累計 / 達標進度 / 達標配速） -->
+    <div class="year-summary-block">
+      <div class="ms-title-nav">
+        <button type="button" class="ms-nav-btn" id="yearPrevBtn">‹</button>
+        <span class="ms-title year-title" id="yearTitleLabel"></span>
+        <button type="button" class="ms-nav-btn" id="yearNextBtn">›</button>
+      </div>
+      <div class="year-stats-scroll" id="yearStatsScroll"></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-outline" id="exportCsv">匯出 CSV（Excel 開啟）</button>
+    <button class="btn btn-outline" id="exportJson">備份資料（存成檔案）</button>
+    <button class="btn btn-outline" id="importBtn">匯入備份</button>
+    <input type="file" id="importFile" accept="application/json">
+  </div>
+
+  <p class="hint">
+    自動儲存：把這個網頁檔案下載到手機、用瀏覽器直接開啟使用時，資料會自動記在這台裝置的瀏覽器中，不需要每次手動備份。但如果你同時用手機和電腦兩台裝置，兩邊資料不會自動同步，仍建議三不五時按「備份資料」存一份，用「匯入備份」在另一台裝置上讀取。
+  </p>
+  <p class="save-status" id="saveStatus"></p>
+
+  <div class="toast" id="toast"><span class="toast-check">✓</span><span id="toastMsg">已新增</span></div>
+
+</div>
+
+<script>
+  const CATEGORIES = ["勞點","排班","油","小費","其他","支出"];
+  const SESSION_CATS = ["勞點","排班"];
+  const SESSION_TYPES = ["身","腳","肩頸","油"];
+  // 節數選項的顯示名稱（內部資料鍵值仍維持「身/腳/油/肩頸」，只改變畫面上顯示的文字，避免影響既有紀錄）
+  const SESSION_LABELS = { 身: "身體", 腳: "腳", 油: "油壓", 肩頸: "肩頸" };
+  const STORAGE_KEY = "work_ledger_records_v1";
+  const BACKUP_DATE_KEY = "work_ledger_last_backup_v1";
+  const BACKUP_SNOOZE_KEY = "work_ledger_backup_snooze_v1";
+  const BACKUP_REMIND_DAYS = 7; // 超過幾天沒備份就提醒
+  const BACKUP_SNOOZE_DAYS = 3; // 按「稍後提醒」後，幾天內不再顯示
+
+  // 節數計費表：每一節（1節）對應的金額，0.5節則自動抓一半計算
+  const SESSION_RATES = {
+    "勞點": { 身: 600, 油: 660, 腳: 420, 肩頸: 210 },
+    "排班": { 身: 500, 油: 550, 腳: 350, 肩頸: 175 }
+  };
+
+  let records = [];
+  let suppressCardClick = false; // 拖曳排序剛結束時，用來避免緊接著誤觸開啟編輯視窗
+  let customRangeStart = null; // 自訂期間統計：開始日期（第一次渲染時才給預設值，避免用到還沒宣告的 todayStr）
+  let customRangeEnd = null;   // 自訂期間統計：結束日期
+  let currentCat = "勞點";
+  let currentSessions = {身:0, 腳:0, 油:0, 肩頸:0};
+
+  // 修正時區 Bug：確保取得使用者本機正確的今天日期（即使在早上 8:00 前）
+  function getLocalDateString(dateObj = new Date()) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const d = String(dateObj.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // ---------- 台灣國定假日（依行政院人事行政總處 2026 年公告整理）----------
+  // 目前僅收錄 2026 年，若切換到其他年份月曆將不會顯示假日標記
+  const HOLIDAYS_2026 = {};
+  function addHolidayRange(startStr, endStr, name){
+    let d = new Date(startStr + "T00:00:00");
+    const end = new Date(endStr + "T00:00:00");
+    while(d <= end){
+      HOLIDAYS_2026[toStr(d)] = name;
+      d.setDate(d.getDate() + 1);
+    }
+  }
+  addHolidayRange("2026-01-01","2026-01-01","元旦");
+  addHolidayRange("2026-02-14","2026-02-22","春節連假");
+  addHolidayRange("2026-02-27","2026-02-28","和平紀念日");
+  addHolidayRange("2026-04-04","2026-04-05","兒童節／清明節");
+  addHolidayRange("2026-05-01","2026-05-01","勞動節");
+  addHolidayRange("2026-06-19","2026-06-19","端午節");
+  addHolidayRange("2026-09-25","2026-09-25","中秋節");
+  addHolidayRange("2026-09-28","2026-09-28","教師節");
+  addHolidayRange("2026-10-09","2026-10-10","國慶日");
+  addHolidayRange("2026-10-25","2026-10-26","台灣光復節");
+  addHolidayRange("2026-12-25","2026-12-25","行憲紀念日");
+
+  const todayStr = getLocalDateString();
+  let calYear = Number(todayStr.slice(0,4));
+  let calMonth = Number(todayStr.slice(5,7)) - 1; // 0-indexed
+  let selectedDate = todayStr;
+
+  document.getElementById("todayLabel").textContent = "今天：" + todayStr;
+  document.getElementById("fDate").value = todayStr;
+
+  // 分類名稱曾經調整過（額外 → 小費），這裡自動轉換舊資料，確保舊備份/舊紀錄還能正常顯示
+  function migrateCategory(cat){
+    if(cat === "額外") return "小費";
+    return cat;
+  }
+
+  // ---------- 本機自動儲存 ----------
+  function saveLocal(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      document.getElementById("saveStatus").textContent = "✓ 已自動儲存在本機（" + new Date().toLocaleTimeString("zh-Hant-TW") + "）";
+    }catch(e){
+      document.getElementById("saveStatus").textContent = "（目前在預覽模式，資料不會自動儲存，請用「備份資料」手動保存）";
+    }
+  }
+  function loadLocal(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ records = JSON.parse(raw).map(r=> ({...r, category: migrateCategory(r.category)})); }
+    }catch(e){ /* 略過，預覽模式下無法使用 localStorage */ }
+  }
+
+  // ---------- 分類選擇 ----------
+  const catPicker = document.getElementById("catPicker");
+  const sessionBox = document.getElementById("sessionBox");
+  function updateSessionVisibility(){ sessionBox.style.display = SESSION_CATS.includes(currentCat) ? "block" : "none"; }
+  updateSessionVisibility();
+
+  catPicker.addEventListener("click",(e)=>{
+    const btn = e.target.closest(".cat-btn");
+    if(!btn) return;
+    currentCat = btn.dataset.cat;
+    [...catPicker.children].forEach(b=>b.classList.toggle("active", b===btn));
+    updateSessionVisibility();
+    recalcAmountFromSessions();
+  });
+
+  sessionBox.addEventListener("click",(e)=>{
+    const btn = e.target.closest("button[data-key]");
+    if(!btn) return;
+    const key = btn.dataset.key;
+    const dir = Number(btn.dataset.dir);
+    currentSessions[key] = Math.max(0, currentSessions[key] + dir*0.5);
+    document.getElementById("val-"+key).textContent = currentSessions[key];
+    const total = currentSessions.身 + currentSessions.腳 + currentSessions.油 + currentSessions.肩頸;
+    document.getElementById("sessionTotal").textContent = total;
+    recalcAmountFromSessions();
+  });
+
+  // 依目前分類的計費表 x 節數，自動算出金額並填入金額欄位（僅勞點/排班適用）
+  function recalcAmountFromSessions(){
+    if(!SESSION_CATS.includes(currentCat)) return;
+    const rates = SESSION_RATES[currentCat];
+    let total = 0;
+    SESSION_TYPES.forEach(k=> total += (currentSessions[k]||0) * (rates[k]||0));
+    document.getElementById("fAmount").value = total > 0 ? Math.round(total) : "";
+  }
+
+  function resetSessionInputs(){
+    currentSessions = {身:0, 腳:0, 油:0, 肩頸:0};
+    SESSION_TYPES.forEach(k=> document.getElementById("val-"+k).textContent = "0");
+    document.getElementById("sessionTotal").textContent = "0";
+  }
+
+  // ---------- 新增紀錄彈跳視窗（含編輯模式） ----------
+  const addModalOverlay = document.getElementById("addModalOverlay");
+  let editingId = null;
+
+  function resetFormFields(){
+    currentCat = "勞點";
+    [...catPicker.children].forEach(b=> b.classList.toggle("active", b.dataset.cat === "勞點"));
+    updateSessionVisibility();
+    resetSessionInputs();
+    document.getElementById("fAmount").value = "";
+    document.getElementById("fNote").value = "";
+  }
+
+  // 連續新增下一筆時使用：保留目前選擇的分類與日期，只清空金額/備註/節數，方便連續輸入
+  function resetForNextEntry(){
+    resetSessionInputs();
+    document.getElementById("fAmount").value = "";
+    document.getElementById("fNote").value = "";
+    // 讓目前有焦點的輸入框失焦，收起手機鍵盤，但視窗保持開啟，方便直接點選節數按鈕
+    if(document.activeElement && typeof document.activeElement.blur === "function"){
+      document.activeElement.blur();
+    }
+  }
+
+  function openAddModal(date){
+    editingId = null;
+    resetFormFields();
+    document.getElementById("fDate").value = date || selectedDate || todayStr;
+    document.getElementById("modalTitleText").textContent = "新增紀錄";
+    document.getElementById("addBtn").textContent = "加入紀錄";
+    addModalOverlay.classList.add("open");
+  }
+
+  function openEditModal(rec){
+    editingId = rec.id;
+    currentCat = rec.category;
+    [...catPicker.children].forEach(b=> b.classList.toggle("active", b.dataset.cat === rec.category));
+    updateSessionVisibility();
+    currentSessions = {身:0, 腳:0, 油:0, 肩頸:0, ...(rec.sessions || {})};
+    SESSION_TYPES.forEach(k=> document.getElementById("val-"+k).textContent = currentSessions[k]);
+    document.getElementById("sessionTotal").textContent = SESSION_TYPES.reduce((s,k)=> s+currentSessions[k], 0);
+    document.getElementById("fDate").value = rec.date;
+    document.getElementById("fAmount").value = rec.amount;
+    document.getElementById("fNote").value = rec.note || "";
+    document.getElementById("modalTitleText").textContent = "編輯紀錄";
+    document.getElementById("addBtn").textContent = "更新紀錄";
+    addModalOverlay.classList.add("open");
+  }
+
+  function closeAddModal(){
+    addModalOverlay.classList.remove("open");
+  }
+  document.getElementById("closeAddModal").addEventListener("click", closeAddModal);
+  addModalOverlay.addEventListener("click",(e)=>{
+    if(e.target === addModalOverlay) closeAddModal();
+  });
+
+  // ---------- 打勾提示（Toast） ----------
+  let toastTimer = null;
+  function showToast(msg){
+    const el = document.getElementById("toast");
+    document.getElementById("toastMsg").textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.classList.remove("show"), 1400);
+  }
+
+  document.getElementById("addBtn").addEventListener("click", ()=>{
+    const date = document.getElementById("fDate").value;
+    const amount = parseFloat(document.getElementById("fAmount").value);
+    const note = document.getElementById("fNote").value.trim();
+    if(!date || !amount || amount <= 0){ alert("請確認日期與金額都已正確填寫！"); return; }
+
+    const wasEditing = !!editingId;
+
+    if(wasEditing){
+      const idx = records.findIndex(r=> r.id === editingId);
+      if(idx > -1){
+        records[idx] = {
+          ...records[idx], date, category: currentCat, amount, note,
+          sessions: SESSION_CATS.includes(currentCat) ? {...currentSessions} : null
+        };
+      }
+      editingId = null;
+    } else {
+      records.push({
+        id: Date.now(), date, category: currentCat, amount, note,
+        sessions: SESSION_CATS.includes(currentCat) ? {...currentSessions} : null
+      });
+    }
+
+    selectedDate = date;
+    saveLocal();
+    renderAll();
+
+    if(wasEditing){
+      // 編輯只針對單一筆紀錄，更新完畢直接關閉視窗
+      closeAddModal();
+      showToast("已更新");
+    } else {
+      // 新增時保留視窗開啟，清空金額/備註/節數，方便連續輸入下一筆
+      resetForNextEntry();
+      showToast("已新增");
+    }
+  });
+
+  // ---------- 計算工具 ----------
+  function sessionSum(r){
+    if(!r.sessions) return 0;
+    return SESSION_TYPES.reduce((s,k)=> s + (r.sessions[k]||0), 0);
+  }
+  function inRange(dateStr, start, end){ return dateStr >= start && dateStr <= end; }
+
+  function summarize(recs){
+    const byCat = {}; CATEGORIES.forEach(c=> byCat[c]=0);
+    recs.forEach(r=> byCat[r.category]+=r.amount);
+    const totalAmount = recs.reduce((s,r)=>s+r.amount,0);
+    const shiftCount = recs.filter(r=> r.category==="勞點").length;
+    const allShiftCount = recs.filter(r=> r.category==="勞點"||r.category==="排班").length;
+    const laborSessions = recs.filter(r=> r.category==="勞點").reduce((s,r)=>s+sessionSum(r),0);
+    const allSessions = recs.filter(r=> r.category==="勞點"||r.category==="排班").reduce((s,r)=>s+sessionSum(r),0);
+    const performance = byCat["勞點"] + byCat["排班"];
+    const otherTotal = byCat["油"] + byCat["小費"] + byCat["其他"] - byCat["支出"];
+    return {byCat, totalAmount, shiftCount, allShiftCount, laborSessions, allSessions, performance, otherTotal};
+  }
+
+  function fmt(n){ return "$" + Math.round(n).toLocaleString("zh-Hant-TW"); }
+  // 用於可能為負數的金額（例如支出、扣除支出後的其他總金額），負數會以「-$金額」呈現
+  function fmtDelta(n){
+    const r = Math.round(n);
+    return (r < 0 ? "-$" : "$") + Math.abs(r).toLocaleString("zh-Hant-TW");
+  }
+
+  // 勞點班數佔全部班數（勞點+排班）的百分比
+  function laborShiftPct(sum){
+    if(sum.allShiftCount === 0) return "";
+    const pct = Math.round((sum.shiftCount / sum.allShiftCount) * 100);
+    return ` <span class="pct">(${pct}%)</span>`;
+  }
+  
+  // 阿拉伯數字表示（無英文縮寫字尾）
+  function compactFmt(n){
+    if(n === 0) return "";
+    return String(Math.round(n));
+  }
+  
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function toStr(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+
+  function getHalfMonthRange(today){
+    const d = new Date(today+"T00:00:00");
+    const day = d.getDate();
+    let start, end;
+    if(day <= 15){ start = new Date(d.getFullYear(), d.getMonth(), 1); end = new Date(d.getFullYear(), d.getMonth(), 15); }
+    else { start = new Date(d.getFullYear(), d.getMonth(), 16); end = new Date(d.getFullYear(), d.getMonth()+1, 0); }
+    return {start: toStr(start), end: toStr(end)};
+  }
+  function getMonthRange(today){
+    const d = new Date(today+"T00:00:00");
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    return {start: toStr(start), end: today};
+  }
+  // 取得「上一個」半月結算期間：目前在下半月時 → 回傳本月上半月(1~15)；目前在上半月時 → 回傳上個月的下半月
+  function getPrevHalfMonthRange(today){
+    const d = new Date(today+"T00:00:00");
+    const day = d.getDate();
+    let start, end;
+    if(day <= 15){
+      const prevMonthLastDay = new Date(d.getFullYear(), d.getMonth(), 0); // 上個月的最後一天
+      start = new Date(prevMonthLastDay.getFullYear(), prevMonthLastDay.getMonth(), 16);
+      end = prevMonthLastDay;
+    } else {
+      start = new Date(d.getFullYear(), d.getMonth(), 1);
+      end = new Date(d.getFullYear(), d.getMonth(), 15);
+    }
+    return {start: toStr(start), end: toStr(end)};
+  }
+
+  // ---------- 統計卡片 ----------
+  function perfCard(title, range, sum, showCounts, full){
+    return `
+      <div class="stat-card${full ? ' full' : ''}">
+        <div class="title">${title}</div>
+        <span class="range">${range}</span>
+        <div class="perf-highlight"><span>業績總金額</span><span class="perf-val">${fmt(sum.performance)}</span></div>
+        <div class="stat-row sub"><span>勞點金額</span><span class="val labor">${fmt(sum.byCat["勞點"])}</span></div>
+        <div class="stat-row sub"><span>排班金額</span><span class="val shift">${fmt(sum.byCat["排班"])}</span></div>
+        ${showCounts ? `
+        <div class="stat-row"><span>勞點班數</span><span class="val">${sum.shiftCount} 班${laborShiftPct(sum)}</span></div>
+        <div class="stat-row"><span>勞點的節數</span><span class="val">${sum.laborSessions} 節</span></div>
+        <div class="stat-row"><span>所有的節數</span><span class="val">${sum.allSessions} 節</span></div>` : ``}
+      </div>`;
+  }
+
+  // 自訂期間統計卡片：可自行選擇開始/結束日期，只看業績總金額，並可點開查看期間內的細項紀錄
+  function customRangeCard(){
+    if(!customRangeStart) customRangeStart = getMonthRange(todayStr).start; // 預設從本月初開始
+    if(!customRangeEnd) customRangeEnd = todayStr; // 預設到今天
+
+    // 如果使用者把開始日期選在結束日期之後，計算時自動對調（輸入框本身維持使用者選的原值）
+    const rangeStart = customRangeStart <= customRangeEnd ? customRangeStart : customRangeEnd;
+    const rangeEnd = customRangeStart <= customRangeEnd ? customRangeEnd : customRangeStart;
+
+    const rangeRecs = records.filter(r => inRange(r.date, rangeStart, rangeEnd));
+    const rangeSum = summarize(rangeRecs);
+    const days = daysBetween(rangeStart, rangeEnd) + 1;
+
+    // 明細只列出算進業績金額的紀錄（勞點／排班），依日期由舊到新排序
+    const perfRecs = rangeRecs
+      .filter(r => r.category === "勞點" || r.category === "排班")
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const detailRows = perfRecs.length === 0
+      ? `<div class="dp-empty">這段期間沒有勞點／排班紀錄</div>`
+      : perfRecs.map(r => {
+          const sessTxt = r.sessions ? SESSION_TYPES.filter(k => r.sessions[k] > 0).map(k => SESSION_LABELS[k] + r.sessions[k]).join(" / ") : "";
+          return `
+          <div class="rec-card range-rec-card" data-id="${r.id}">
+            <span class="tag ${r.category}">${r.category}</span>
+            <div class="info">
+              <div class="note">${r.date.slice(5)}${r.note ? " · " + r.note : ""}</div>
+              ${sessTxt ? `<div class="sessions">${sessTxt}</div>` : ""}
+            </div>
+            <span class="amount">${fmt(r.amount)}</span>
+          </div>`;
+        }).join("");
+
+    return `
+      <div class="stat-card custom-range-card">
+        <div class="title">自訂期間</div>
+        <div class="range-picker">
+          <input type="date" id="customRangeStart" value="${customRangeStart}">
+          <span>～</span>
+          <input type="date" id="customRangeEnd" value="${customRangeEnd}">
+        </div>
+        <span class="range">${rangeStart.slice(5)} ~ ${rangeEnd.slice(5)}（共 ${days} 天）</span>
+        <div class="perf-highlight"><span>業績總金額</span><span class="perf-val">${fmt(rangeSum.performance)}</span></div>
+        <div class="stat-row sub"><span>勞點金額</span><span class="val labor">${fmt(rangeSum.byCat["勞點"])}</span></div>
+        <div class="stat-row sub"><span>排班金額</span><span class="val shift">${fmt(rangeSum.byCat["排班"])}</span></div>
+        <details class="amount-details">
+          <summary><span>點開查看明細</span><b>${perfRecs.length} 筆</b></summary>
+          <div class="custom-range-list">
+            ${detailRows}
+          </div>
+        </details>
+      </div>`;
+  }
+
+  function renderStats(){
+    const today = todayStr;
+    const half = getHalfMonthRange(today);
+    const halfSum = summarize(records.filter(r=> inRange(r.date, half.start, today)));
+
+    const prev = getPrevHalfMonthRange(today);
+    const prevSum = summarize(records.filter(r=> inRange(r.date, prev.start, prev.end)));
+
+    const cardsHtml =
+      perfCard("下期結算發薪", half.start.slice(5)+" ~ "+half.end.slice(5)+"（至 "+today.slice(5)+"）", halfSum, false, false) +
+      perfCard("上期結算金額", prev.start.slice(5)+" ~ "+prev.end.slice(5), prevSum, false, false) +
+      customRangeCard();
+
+    // 重繪整排卡片會讓橫向捲動重置回最左邊，這裡記住並還原捲動位置，避免使用者正在看/操作自訂期間卡片時被跳走
+    const scrollEl = document.getElementById("statsScroll");
+    const prevScrollLeft = scrollEl.scrollLeft;
+    scrollEl.innerHTML = cardsHtml;
+    scrollEl.scrollLeft = prevScrollLeft;
+  }
+
+  // 自訂期間的日期輸入框一變動，就重新計算該區間的統計（事件委派在固定不變的外層容器上）
+  document.getElementById("statsScroll").addEventListener("change", (e)=>{
+    if(e.target && e.target.id === "customRangeStart"){
+      customRangeStart = e.target.value || customRangeStart;
+      renderStats();
+    } else if(e.target && e.target.id === "customRangeEnd"){
+      customRangeEnd = e.target.value || customRangeEnd;
+      renderStats();
+    }
+  });
+
+  // 點擊自訂期間明細中的某一筆紀錄，直接開啟編輯視窗
+  document.getElementById("statsScroll").addEventListener("click", (e)=>{
+    const item = e.target.closest(".range-rec-card");
+    if(!item) return;
+    const id = Number(item.dataset.id);
+    const rec = records.find(r => r.id === id);
+    if(rec) openEditModal(rec);
+  });
+
+  // ---------- 月曆 ----------
+  function renderCalendar(){
+    document.getElementById("calTitle").textContent = calYear + "年" + (calMonth+1) + "月";
+    
+    // 取得該月第一天是星期幾 (0是日, 1是一...6是六)
+    const firstWeekday = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+    // 改為星期一起始，計算前方需要補幾個空格
+    const emptyCells = (firstWeekday === 0) ? 6 : firstWeekday - 1;
+
+    let cells = "";
+    for(let i=0; i<emptyCells; i++) cells += `<div class="cal-cell empty"></div>`;
+    
+    for(let d=1; d<=daysInMonth; d++){
+      const dateStr = calYear + "-" + pad(calMonth+1) + "-" + pad(d);
+      const dayRecs = records.filter(r=> r.date === dateStr);
+      const perf = summarize(dayRecs).performance;
+      const weekday = new Date(calYear, calMonth, d).getDay(); // 0=日, 6=六
+      const holidayName = HOLIDAYS_2026[dateStr];
+
+      let cls = "cal-cell";
+      if(holidayName) cls += " holiday";
+      else if(weekday === 0 || weekday === 6) cls += " weekend";
+      if(dateStr === todayStr) cls += " today";
+      if(dateStr === selectedDate) cls += " selected";
+
+      // 根據金額範圍指定對應的顏色 CSS
+      let amtColorClass = "";
+      if(perf > 0) {
+        if(perf < 1500) { amtColorClass = "level-low"; }
+        else if(perf < 3000) { amtColorClass = "level-mid"; }
+        else { amtColorClass = "level-high"; }
+      }
+
+      const titleAttr = holidayName ? ` title="${holidayName}"` : "";
+
+      cells += `<div class="${cls}" data-date="${dateStr}"${titleAttr}>
+        <span class="d">${d}</span>
+        <span class="amt ${amtColorClass}">${compactFmt(perf)}</span>
+      </div>`;
+    }
+    document.getElementById("calGrid").innerHTML = cells;
+    
+    // 月曆切換時，自動計算並渲染下方「月度累計統計」
+    renderMonthSummary();
+  }
+
+  document.getElementById("calGrid").addEventListener("click",(e)=>{
+    const cell = e.target.closest(".cal-cell[data-date]");
+    if(!cell) return;
+    selectedDate = cell.dataset.date;
+    renderCalendar();
+    renderDayPanel();
+  });
+
+  document.getElementById("addForDayTop").addEventListener("click", ()=>{
+    openAddModal(selectedDate);
+  });
+
+  document.getElementById("calPrev").addEventListener("click", ()=>{
+    calMonth--; if(calMonth<0){ calMonth=11; calYear--; }
+    renderCalendar();
+  });
+  document.getElementById("calNext").addEventListener("click", ()=>{
+    calMonth++; if(calMonth>11){ calMonth=0; calYear++; }
+    renderCalendar();
+  });
+
+  document.getElementById("monthSummaryCard").addEventListener("click",(e)=>{
+    const btn = e.target.closest(".ms-nav-btn");
+    if(!btn) return;
+    const dir = Number(btn.dataset.dir);
+    calMonth += dir;
+    if(calMonth < 0){ calMonth = 11; calYear--; }
+    else if(calMonth > 11){ calMonth = 0; calYear++; }
+    renderCalendar();
+  });
+
+  document.getElementById("yearPrevBtn").addEventListener("click", ()=>{
+    viewYear -= 1;
+    renderYearSummary();
+  });
+  document.getElementById("yearNextBtn").addEventListener("click", ()=>{
+    viewYear += 1;
+    renderYearSummary();
+  });
+
+  // ---------- 備註關鍵字搜尋 ----------
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+
+  searchInput.addEventListener("input", ()=>{
+    const q = searchInput.value.trim();
+    if(!q){ searchResults.innerHTML = ""; return; }
+
+    const matches = records
+      .filter(r=> (r.note||"").includes(q) || r.category.includes(q))
+      .sort((a,b)=> b.date.localeCompare(a.date))
+      .slice(0, 30);
+
+    if(matches.length === 0){
+      searchResults.innerHTML = `<div class="dp-empty">找不到符合「${q}」的紀錄</div>`;
+      return;
+    }
+
+    searchResults.innerHTML = matches.map(r=> `
+      <div class="search-result-item" data-date="${r.date}">
+        <span class="tag ${r.category}">${r.category}</span>
+        <div class="info">
+          <div class="note">${r.note || "（無備註）"}</div>
+          <div class="date">${r.date}</div>
+        </div>
+        <span class="amount">${fmt(r.amount)}</span>
+      </div>
+    `).join("");
+  });
+
+  searchResults.addEventListener("click",(e)=>{
+    const item = e.target.closest(".search-result-item");
+    if(!item) return;
+    const date = item.dataset.date;
+    selectedDate = date;
+    calYear = Number(date.slice(0,4));
+    calMonth = Number(date.slice(5,7)) - 1;
+    renderCalendar();
+    renderDayPanel();
+    searchInput.value = "";
+    searchResults.innerHTML = "";
+    document.querySelector(".cal-card").scrollIntoView({behavior:"smooth", block:"start"});
+  });
+
+  // ---------- 當日細項面板 ----------
+  function renderDayPanel(){
+    const panel = document.getElementById("dayPanel");
+    if(!selectedDate){ panel.innerHTML = `<div class="dp-empty">點選上方日期，可以查看或新增當天的紀錄</div>`; return; }
+
+    const recs = records.filter(r=> r.date === selectedDate);
+    const sum = summarize(recs);
+
+    const recsHtml = recs.length === 0
+      ? `<div class="dp-empty">這天還沒有紀錄</div>`
+      : recs.map(r=>{
+          const sessTxt = r.sessions ? SESSION_TYPES.filter(k=>r.sessions[k]>0).map(k=>SESSION_LABELS[k]+r.sessions[k]).join(" / ") + `（節數 ${sessionSum(r)}）` : "";
+          return `
+          <div class="rec-card" data-id="${r.id}">
+            <span class="tag ${r.category}">${r.category}</span>
+            <div class="info">
+              ${r.note ? `<div class="note">${r.note}</div>` : ""}
+              ${sessTxt ? `<div class="sessions">${sessTxt}</div>` : ""}
+            </div>
+            <span class="amount">${fmt(r.amount)}</span>
+            <button class="del" title="刪除">✕</button>
+          </div>`;
+        }).join("");
+
+    panel.innerHTML = `
+      ${recs.length > 1 ? `<div class="reorder-hint">長按紀錄可拖曳調整排序</div>` : ""}
+      ${recsHtml}
+
+      <div class="day-summary-card">
+        <div class="ms-title-row">
+          <span class="ms-title">當日統計</span>
+          <span class="ms-date">${selectedDate}</span>
+        </div>
+        <div class="ms-grid">
+          <div class="ms-item"><span>勞點班數</span><b>${sum.shiftCount} 班${laborShiftPct(sum)}</b></div>
+          <div class="ms-item"><span>勞點節數</span><b>${sum.laborSessions} 節</b></div>
+          <div class="ms-item"><span>所有節數</span><b>${sum.allSessions} 節</b></div>
+        </div>
+        <div class="qrow total"><span>業績總金額</span><b>${fmt(sum.performance)}</b></div>
+        <div class="sub-breakdown">
+          <div class="qrow"><span>勞點</span><b class="labor">${fmt(sum.byCat["勞點"])}</b></div>
+          <div class="qrow"><span>排班</span><b class="shift">${fmt(sum.byCat["排班"])}</b></div>
+        </div>
+        <div class="qrow total"><span>其他總金額</span><b class="${sum.otherTotal<0?'neg':''}">${fmtDelta(sum.otherTotal)}</b></div>
+        <div class="sub-breakdown">
+          <div class="qrow"><span>油</span><b>${fmt(sum.byCat["油"])}</b></div>
+          <div class="qrow"><span>小費</span><b>${fmt(sum.byCat["小費"])}</b></div>
+          <div class="qrow"><span>其他</span><b>${fmt(sum.byCat["其他"])}</b></div>
+          <div class="qrow"><span>支出</span><b class="neg">${fmtDelta(-sum.byCat["支出"])}</b></div>
+        </div>
+      </div>
+    `;
+
+    panel.querySelectorAll(".rec-card").forEach(card=>{
+      card.addEventListener("click", (e)=>{
+        if(suppressCardClick) return;
+        if(e.target.closest(".del")) return;
+        const id = Number(card.dataset.id);
+        const rec = records.find(r=> r.id === id);
+        if(rec) openEditModal(rec);
+      });
+    });
+
+    panel.querySelectorAll(".del").forEach(btn=>{
+      btn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const id = Number(btn.closest(".rec-card").dataset.id);
+        const rec = records.find(r=> r.id === id);
+        const label = rec ? (rec.note ? rec.note : (rec.category + " " + fmt(rec.amount))) : "這筆紀錄";
+        if(!confirm(`確定要刪除「${label}」嗎？\n刪除後無法復原。`)) return;
+        records = records.filter(r=> r.id !== id);
+        saveLocal();
+        renderAll();
+        showToast("已刪除");
+      });
+    });
+  }
+
+  // ---------- 紀錄項目：長按拖曳排序 ----------
+  const REORDER_LONG_PRESS_MS = 450; // 長按超過這個時間才會進入拖曳模式
+  const REORDER_MOVE_CANCEL_PX = 10; // 長按等待期間，手指移動超過這個距離就視為滑動頁面，取消拖曳
+
+  // 把 newOrderIds（同一天紀錄的新排列順序）套用回整個 records 陣列，
+  // 其他日期的紀錄位置維持不動，只調整這一天紀錄彼此之間的相對順序
+  function reorderDayRecords(newOrderIds){
+    const daySet = new Set(newOrderIds);
+    const dayMap = {};
+    records.forEach(r=>{ if(daySet.has(r.id)) dayMap[r.id] = r; });
+
+    const result = [];
+    let inserted = false;
+    records.forEach(r=>{
+      if(daySet.has(r.id)){
+        if(!inserted){
+          newOrderIds.forEach(id=>{ if(dayMap[id]) result.push(dayMap[id]); });
+          inserted = true;
+        }
+        // 其餘同一天的紀錄已經在上面一次插入，這裡略過
+      } else {
+        result.push(r);
+      }
+    });
+    records = result;
+  }
+
+  function beginCardDrag(card, startY){
+    if(navigator.vibrate) navigator.vibrate(15); // 進入拖曳模式時輕震動一下，給個回饋
+    const container = card.parentElement; // 紀錄卡片的父層就是 #dayPanel
+    card.classList.add("dragging");
+
+    const startRect = card.getBoundingClientRect();
+    const grabOffset = startY - startRect.top; // 手指按下的位置，相對卡片頂端的距離，拖曳過程中要維持一致，卡片才會一直黏著手指
+
+    // 依目前手指位置，判斷是否需要跟其他紀錄交換順序；如果需要，讓被擠開的紀錄用動畫滑到新位置
+    function reorderIfNeeded(fingerY){
+      // 暫時拿掉 transform，量出卡片「沒有偏移」時的實際版面位置
+      card.style.transform = "";
+      const naturalRect = card.getBoundingClientRect();
+
+      const desiredTop = fingerY - grabOffset;
+      const desiredMid = desiredTop + naturalRect.height / 2;
+
+      const siblings = Array.from(container.querySelectorAll(".rec-card")).filter(el => el !== card);
+      let target = null;
+      for(const sib of siblings){
+        const r = sib.getBoundingClientRect();
+        if(desiredMid < r.top + r.height / 2){ target = sib; break; }
+      }
+
+      const currentNext = card.nextElementSibling;
+      const needsMove = target ? (target !== currentNext) : (container.lastElementChild !== card);
+
+      if(needsMove){
+        // FLIP 動畫：先記住其他卡片目前位置，換位後再讓它們從舊位置滑到新位置，做出「排序移動感」
+        const firstRects = new Map();
+        siblings.forEach(sib => firstRects.set(sib, sib.getBoundingClientRect()));
+
+        if(target){ container.insertBefore(card, target); }
+        else { container.appendChild(card); }
+
+        siblings.forEach(sib=>{
+          const before = firstRects.get(sib);
+          const after = sib.getBoundingClientRect();
+          const dy = before.top - after.top;
+          if(dy){
+            sib.style.transition = "none";
+            sib.style.transform = `translateY(${dy}px)`;
+            sib.getBoundingClientRect(); // 強制 reflow，讓下面的 transition 生效
+            sib.style.transition = "transform 0.18s ease";
+            sib.style.transform = "";
+          }
+        });
+      }
+
+      // 卡片可能已經換到新位置，重新量測後再套上視覺偏移，讓它繼續黏在手指上、不會跳動
+      const afterRect = card.getBoundingClientRect();
+      card.style.transform = `translateY(${desiredTop - afterRect.top}px)`;
+    }
+
+    function onMove(ev){
+      ev.preventDefault(); // 拖曳中不讓頁面跟著捲動
+      const t = ev.touches[0];
+      reorderIfNeeded(t.clientY);
+    }
+
+    function onEnd(){
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onEnd);
+
+      card.style.transform = "";
+      card.classList.remove("dragging");
+
+      const newOrderIds = Array.from(container.querySelectorAll(".rec-card")).map(el => Number(el.dataset.id));
+      reorderDayRecords(newOrderIds);
+      saveLocal();
+
+      // 拖放結束後的這一下放開，手機瀏覽器常會補送一個 click，這裡短暫封鎖避免誤開編輯視窗
+      suppressCardClick = true;
+      setTimeout(()=>{ suppressCardClick = false; }, 300);
+
+      renderDayPanel();
+    }
+
+    document.addEventListener("touchmove", onMove, {passive:false});
+    document.addEventListener("touchend", onEnd, {passive:true});
+    document.addEventListener("touchcancel", onEnd, {passive:true});
+  }
+
+  function initRecCardReorder(){
+    document.getElementById("dayPanel").addEventListener("touchstart", (e)=>{
+      const card = e.target.closest(".rec-card");
+      if(!card) return;
+      if(e.target.closest(".del")) return; // 刪除鈕不要觸發拖曳判斷
+
+      const touch = e.touches[0];
+      const startX = touch.clientX, startY = touch.clientY;
+      let cancelled = false;
+
+      function onEarlyMove(ev){
+        const t = ev.touches[0];
+        if(Math.abs(t.clientY - startY) > REORDER_MOVE_CANCEL_PX || Math.abs(t.clientX - startX) > REORDER_MOVE_CANCEL_PX){
+          cancelled = true;
+          cleanupEarly();
+        }
+      }
+      function cleanupEarly(){
+        clearTimeout(timer);
+        document.removeEventListener("touchmove", onEarlyMove);
+        document.removeEventListener("touchend", cleanupEarly);
+        document.removeEventListener("touchcancel", cleanupEarly);
+      }
+
+      document.addEventListener("touchmove", onEarlyMove, {passive:true});
+      document.addEventListener("touchend", cleanupEarly, {passive:true});
+      document.addEventListener("touchcancel", cleanupEarly, {passive:true});
+
+      const timer = setTimeout(()=>{
+        cleanupEarly();
+        if(cancelled) return;
+        beginCardDrag(card, startY);
+      }, REORDER_LONG_PRESS_MS);
+    }, {passive:true});
+  }
+
+  // ---------- 月曆正下方的月度累計計算 ----------
+  function renderMonthSummary() {
+    const startOfMonth = `${calYear}-${pad(calMonth+1)}-01`;
+    const endOfMonth = `${calYear}-${pad(calMonth+1)}-${pad(new Date(calYear, calMonth+1, 0).getDate())}`;
+    const monthRecs = records.filter(r => inRange(r.date, startOfMonth, endOfMonth));
+    const sum = summarize(monthRecs);
+
+    const box = document.getElementById("monthSummaryCard");
+    box.innerHTML = `
+      <div class="ms-title-nav">
+        <button type="button" class="ms-nav-btn" data-dir="-1">‹</button>
+        <span class="ms-title">${calYear}年${calMonth+1}月 整月統計</span>
+        <button type="button" class="ms-nav-btn" data-dir="1">›</button>
+      </div>
+      <div class="ms-grid">
+        <div class="ms-item"><span>勞點班數</span><b>${sum.shiftCount} 班${laborShiftPct(sum)}</b></div>
+        <div class="ms-item"><span>勞點節數</span><b>${sum.laborSessions} 節</b></div>
+        <div class="ms-item"><span>所有節數</span><b>${sum.allSessions} 節</b></div>
+      </div>
+      <details class="amount-details">
+        <summary><span>業績總金額（點開明細）</span><b>${fmt(sum.performance)}</b></summary>
+        <div class="sub-breakdown">
+          <div class="qrow"><span>勞點</span><b class="labor">${fmt(sum.byCat["勞點"])}</b></div>
+          <div class="qrow"><span>排班</span><b class="shift">${fmt(sum.byCat["排班"])}</b></div>
+        </div>
+      </details>
+      <details class="amount-details">
+        <summary><span>其他總金額（點開明細）</span><b class="${sum.otherTotal<0?'neg':''}">${fmtDelta(sum.otherTotal)}</b></summary>
+        <div class="sub-breakdown">
+          <div class="qrow"><span>油</span><b>${fmt(sum.byCat["油"])}</b></div>
+          <div class="qrow"><span>小費</span><b>${fmt(sum.byCat["小費"])}</b></div>
+          <div class="qrow"><span>其他</span><b>${fmt(sum.byCat["其他"])}</b></div>
+          <div class="qrow"><span>支出</span><b class="neg">${fmtDelta(-sum.byCat["支出"])}</b></div>
+        </div>
+      </details>
+    `;
+  }
+
+  // ---------- 整年度統計（年度累計 / 達標進度 / 達標配速，可滑動查看） ----------
+  let viewYear = Number(todayStr.slice(0,4));
+
+  // 年度達標目標
+  const YEAR_GOALS = { shiftCount: 960, laborSessions: 1200, allSessions: 2160 };
+  const GOAL_UNITS  = { shiftCount: "班", laborSessions: "節", allSessions: "節" };
+  const GOAL_LABELS = { shiftCount: "勞點班數", laborSessions: "勞點節數", allSessions: "所有節數" };
+
+  // 數字顯示：最多取到小數第一位，整數則不顯示小數點
+  function fmtNum(n){
+    const r = Math.round(n * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  }
+
+  function goalRow(key, current){
+    const target = YEAR_GOALS[key];
+    const label = GOAL_LABELS[key];
+    const unit = GOAL_UNITS[key];
+    const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+    const done = current >= target;
+    return `
+      <div class="goal-row">
+        <div class="goal-row-head">
+          <span>${label}</span>
+          <span class="goal-num">${fmtNum(current)} / ${target} ${unit}</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill${done ? ' done' : ''}" style="width:${pct}%"></div></div>
+        <div class="goal-pct${done ? ' done' : ''}">${done ? '🎉 已達標' : pct + '%'}</div>
+      </div>`;
+  }
+
+  function paceRow(key, current, remainingMonths, effectiveDays){
+    const target = YEAR_GOALS[key];
+    const label = GOAL_LABELS[key];
+    const unit = GOAL_UNITS[key];
+    const remaining = Math.max(0, target - current);
+
+    if(remaining === 0){
+      return `<div class="pace-row" data-key="${key}"><div class="pr-title">${label}</div><div class="pace-note">🎉 已達成目標，剩餘 0 ${unit}</div></div>`;
+    }
+
+    const perMonth = remainingMonths > 0 ? remaining / remainingMonths : null;
+    const perDay = effectiveDays > 0 ? remaining / effectiveDays : null;
+
+    return `
+      <div class="pace-row" data-key="${key}">
+        <div class="pr-title">${label}（還差 ${fmtNum(remaining)} ${unit}）</div>
+        <div class="pr-grid">
+          <div class="pr-item"><span>平均每月</span><b>${perMonth!==null ? fmtNum(perMonth) : '－'}</b></div>
+          <div class="pr-item"><span>平均每天</span><b id="pace-${key}-day">${perDay!==null ? fmtNum(perDay) : '－'}</b></div>
+        </div>
+      </div>`;
+  }
+
+  // 使用者設定的「預計休假天數」，會從剩餘天數中扣除後再計算平均每天配速
+  let restDays = 0;
+  // 記住目前這張配速卡片的計算基準，讓休假天數輸入變動時可以只更新數字，不用整卡重繪（避免輸入框失焦）
+  let paceRemainingDaysBase = 0;
+  let paceRemainingMonths = 0;
+  let paceSumSnapshot = null;
+
+  // 依目前輸入的休假天數，重新計算「平均每天」並只更新畫面上的數字，不重繪整張卡片
+  function recalcPaceDisplay(){
+    if(!paceSumSnapshot) return;
+    const input = document.getElementById("restDaysInput");
+    if(!input) return;
+
+    let val = Number(input.value);
+    if(isNaN(val) || val < 0) val = 0;
+    if(val > paceRemainingDaysBase) val = paceRemainingDaysBase;
+    restDays = val;
+
+    const effectiveDays = Math.max(0, paceRemainingDaysBase - restDays);
+    const noteEl = document.getElementById("paceEffectiveDaysVal");
+    if(noteEl) noteEl.textContent = effectiveDays;
+
+    ["shiftCount","laborSessions","allSessions"].forEach(key=>{
+      const target = YEAR_GOALS[key];
+      const current = paceSumSnapshot[key];
+      const remaining = Math.max(0, target - current);
+      const dayEl = document.getElementById(`pace-${key}-day`);
+      if(!dayEl) return; // 已達標的項目沒有這個欄位
+      dayEl.textContent = (remaining > 0 && effectiveDays > 0) ? fmtNum(remaining / effectiveDays) : (remaining > 0 ? '－' : '');
+    });
+  }
+
+  // 事件委派：休假天數輸入框每次變動都重新計算（元素會隨卡片重繪，故綁在固定不變的外層容器上）
+  document.getElementById("yearStatsScroll").addEventListener("change", (e)=>{
+    if(e.target && e.target.id === "restDaysInput"){
+      recalcPaceDisplay();
+    }
+  });
+
+  function renderYearSummary() {
+    const startOfYear = `${viewYear}-01-01`;
+    const endOfYear = `${viewYear}-12-31`;
+    const yearRecs = records.filter(r => inRange(r.date, startOfYear, endOfYear));
+    const sum = summarize(yearRecs);
+
+    document.getElementById("yearTitleLabel").textContent = `${viewYear}年 整年度統計`;
+
+    // 年度達標進度（含業績總金額／其他總金額明細，比照當日統計的呈現方式）
+    const cardGoals = `
+      <div class="year-card">
+        <div class="yc-title">年度達標進度</div>
+        ${goalRow("shiftCount", sum.shiftCount)}
+        ${goalRow("laborSessions", sum.laborSessions)}
+        ${goalRow("allSessions", sum.allSessions)}
+        <details class="amount-details">
+          <summary><span>業績總金額（點開明細）</span><b>${fmt(sum.performance)}</b></summary>
+          <div class="sub-breakdown">
+            <div class="qrow"><span>勞點</span><b class="labor">${fmt(sum.byCat["勞點"])}</b></div>
+            <div class="qrow"><span>排班</span><b class="shift">${fmt(sum.byCat["排班"])}</b></div>
+          </div>
+        </details>
+        <details class="amount-details">
+          <summary><span>其他總金額（點開明細）</span><b class="${sum.otherTotal<0?'neg':''}">${fmtDelta(sum.otherTotal)}</b></summary>
+          <div class="sub-breakdown">
+            <div class="qrow"><span>油</span><b>${fmt(sum.byCat["油"])}</b></div>
+            <div class="qrow"><span>小費</span><b>${fmt(sum.byCat["小費"])}</b></div>
+            <div class="qrow"><span>其他</span><b>${fmt(sum.byCat["其他"])}</b></div>
+            <div class="qrow"><span>支出</span><b class="neg">${fmtDelta(-sum.byCat["支出"])}</b></div>
+          </div>
+        </details>
+      </div>`;
+
+    // 卡片二：達標配速（只在檢視「今年」時計算，其他年份沒有意義）
+    const actualYear = Number(todayStr.slice(0,4));
+    let cardPace;
+    if(viewYear === actualYear){
+      const now = new Date(todayStr + "T00:00:00");
+      const endOfYearDate = new Date(viewYear, 11, 31);
+      const remainingDays = Math.floor((endOfYearDate - now) / 86400000) + 1; // 含今天
+      const remainingMonths = 12 - now.getMonth(); // 含當月
+
+      // 記住這次計算的基準，供休假天數輸入變動時使用
+      paceRemainingDaysBase = remainingDays;
+      paceRemainingMonths = remainingMonths;
+      paceSumSnapshot = { shiftCount: sum.shiftCount, laborSessions: sum.laborSessions, allSessions: sum.allSessions };
+      if(restDays > remainingDays) restDays = remainingDays;
+      const effectiveDays = Math.max(0, remainingDays - restDays);
+      const restOptions = Array.from({length: remainingDays + 1}, (_, i) => i)
+        .map(i => `<option value="${i}"${i === restDays ? ' selected' : ''}>${i}</option>`)
+        .join("");
+
+      cardPace = `
+        <div class="year-card">
+          <div class="yc-title">達標配速</div>
+          <div class="pace-header-line">
+            剩餘 <b>${remainingMonths}</b> 個月・<b>${remainingDays}</b> 天 － <select id="restDaysInput" class="rest-select">${restOptions}</select> 天休假
+          </div>
+          <div class="pace-effective-line">扣除後可工作約 <b id="paceEffectiveDaysVal">${effectiveDays}</b> 天</div>
+          ${paceRow("shiftCount", sum.shiftCount, remainingMonths, effectiveDays)}
+          ${paceRow("laborSessions", sum.laborSessions, remainingMonths, effectiveDays)}
+          ${paceRow("allSessions", sum.allSessions, remainingMonths, effectiveDays)}
+        </div>`;
+    } else if(viewYear < actualYear){
+      cardPace = `
+        <div class="year-card">
+          <div class="yc-title">達標配速</div>
+          <div class="pace-note">此年度已結束，不提供配速建議</div>
+        </div>`;
+    } else {
+      cardPace = `
+        <div class="year-card">
+          <div class="yc-title">達標配速</div>
+          <div class="pace-note">此年度尚未開始，不提供配速建議</div>
+        </div>`;
+    }
+
+    document.getElementById("yearStatsScroll").innerHTML = cardGoals + cardPace;
+  }
+
+  // ---------- 備份提醒 ----------
+  function addDaysToDateStr(dateStr, days){
+    const d = new Date(dateStr + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return toStr(d);
+  }
+  function daysBetween(fromStr, toStrVal){
+    return Math.floor((new Date(toStrVal + "T00:00:00") - new Date(fromStr + "T00:00:00")) / 86400000);
+  }
+  function getLastBackupDate(){
+    try{ return localStorage.getItem(BACKUP_DATE_KEY); }catch(e){ return null; }
+  }
+  function markBackedUpToday(){
+    try{ localStorage.setItem(BACKUP_DATE_KEY, todayStr); }catch(e){}
+  }
+  function getSnoozeUntil(){
+    try{ return localStorage.getItem(BACKUP_SNOOZE_KEY); }catch(e){ return null; }
+  }
+  function setSnoozeUntil(dateStr){
+    try{ localStorage.setItem(BACKUP_SNOOZE_KEY, dateStr); }catch(e){}
+  }
+
+  function checkBackupReminder(){
+    const banner = document.getElementById("backupBanner");
+    const textEl = document.getElementById("bbText");
+
+    if(records.length === 0){ banner.style.display = "none"; return; }
+
+    const snoozeUntil = getSnoozeUntil();
+    if(snoozeUntil && todayStr < snoozeUntil){ banner.style.display = "none"; return; }
+
+    const lastBackup = getLastBackupDate();
+    const shouldRemind = !lastBackup || daysBetween(lastBackup, todayStr) >= BACKUP_REMIND_DAYS;
+
+    if(!shouldRemind){ banner.style.display = "none"; return; }
+
+    if(lastBackup){
+      const days = daysBetween(lastBackup, todayStr);
+      textEl.innerHTML = `<b>備份提醒：</b>距離上次備份已經 <b>${days}</b> 天了，記得備份一下資料喔！`;
+    } else {
+      textEl.innerHTML = `<b>備份提醒：</b>你還沒有備份過資料，建議先備份一次，避免手機遺失或換機時資料不見！`;
+    }
+    banner.style.display = "flex";
+  }
+
+  document.getElementById("bbBackupBtn").addEventListener("click", ()=>{
+    doExportJson();
+  });
+  document.getElementById("bbDismissBtn").addEventListener("click", ()=>{
+    setSnoozeUntil(addDaysToDateStr(todayStr, BACKUP_SNOOZE_DAYS));
+    document.getElementById("backupBanner").style.display = "none";
+  });
+
+  // ---------- 匯出 / 匯入 ----------
+  function downloadFile(filename, content, mime){
+    const blob = new Blob([content], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById("exportCsv").addEventListener("click", ()=>{
+    const header = "日期,分類,金額,身,腳,肩頸,油,節數,備註\n";
+    const rows = records.map(r=>{
+      const s = r.sessions || {身:0,腳:0,油:0,肩頸:0};
+      return `${r.date},${r.category},${r.amount},${s.身},${s.腳},${s.肩頸},${s.油},${sessionSum(r)},${r.note||""}`;
+    }).join("\n");
+    downloadFile("記帳表.csv", "\uFEFF"+header+rows, "text/csv;charset=utf-8;");
+  });
+
+  // 匯出 JSON 備份：工具列按鈕與備份提醒橫幅共用這支函式
+  function doExportJson(){
+    downloadFile("記帳表備份.json", JSON.stringify(records, null, 2), "application/json");
+    markBackedUpToday();
+    checkBackupReminder();
+    showToast("已完成備份");
+  }
+
+  document.getElementById("exportJson").addEventListener("click", doExportJson);
+
+  document.getElementById("importBtn").addEventListener("click", ()=>{
+    document.getElementById("importFile").click();
+  });
+
+  document.getElementById("importFile").addEventListener("change",(e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt)=>{
+      try{
+        const data = JSON.parse(evt.target.result);
+        if(Array.isArray(data)){
+          records = data.map(r=> ({
+            ...r,
+            category: migrateCategory(r.category),
+            sessions: r.sessions ? {身:0,腳:0,油:0,肩頸:0, ...r.sessions} : null
+          }));
+          saveLocal();
+          renderAll();
+          alert("匯入成功！共 " + records.length + " 筆紀錄。");
+        } else { alert("檔案格式看起來不對。"); }
+      }catch(err){ alert("讀取失敗，請確認選對備份檔案。"); }
+    };
+    reader.readAsText(file);
+  });
+
+  function renderAll(){
+    renderStats();
+    renderCalendar();
+    renderDayPanel();
+    renderYearSummary();
+    checkBackupReminder();
+  }
+
+  loadLocal();
+  initRecCardReorder();
+  renderAll();
+  saveLocal(); // 立刻嘗試儲存一次，顯示目前的儲存狀態與時間
+</script>
+</body>
+</html>
